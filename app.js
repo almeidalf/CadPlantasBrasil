@@ -1,4 +1,5 @@
 require('dotenv').config();
+const cors = require('cors');
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
@@ -6,6 +7,7 @@ const app = express();
 
 // Config JSON
 app.use(express.json());
+app.use(cors());
 
 // Importando as rotas
 const authRoutes = require('./routes/auth');
@@ -21,25 +23,6 @@ app.get('/', (req, res) => {
 app.use('/auth', authRoutes);
 app.use('/user', userRoutes);
 app.use('/plants', plantsRoutes);
-
-
-// Middleware de verificação de token (precisa ser configurado)
-function checkToken(req, res, next) {
-    const authHeader = req.headers['authorization']
-    const token = authHeader && authHeader.split(" ")[1]
-
-    if(!token) {
-        res.status(401).json({ mensagem: "Acesso negado!"})
-    }
-
-    try {
-        const secret = process.env.SECRET
-        jwt.verify(token, secret)
-        next()
-    } catch (err) {
-        res.status(400).json({ mensagem: "Token inválido!"})
-    }
-}
 
 
 // Credencials
