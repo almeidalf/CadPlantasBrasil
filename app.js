@@ -7,7 +7,13 @@ const app = express();
 
 // Config JSON
 app.use(express.json());
-app.use(cors());
+
+// Config Cors
+const corsOptions = {
+    origin: 'https://cad-plantas-brasil.vercel.app'
+};
+
+app.use(cors(corsOptions));
 
 // Importando as rotas
 const authRoutes = require('./routes/auth');
