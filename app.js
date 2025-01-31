@@ -26,9 +26,9 @@ app.get('/', (req, res) => {
 });
 
 // Usando as rotas
-app.use('/auth', authRoutes);
-app.use('/user', userRoutes);
-app.use('/plants', plantsRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/user', userRoutes);
+app.use('/api/v1/plants', plantsRoutes);
 
 
 // Credencials
