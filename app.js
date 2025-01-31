@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
+const path = require('path');
 const app = express();
 
 // Config JSON
@@ -11,9 +12,9 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const plantsRoutes = require('./routes/plants');
 
-// Rota inicial
+app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => {
-    res.status(200).json({ mensagem: "Bem vindo a nossa API CADASTRO DE PLANTAS BRASIL" });
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Usando as rotas
@@ -44,12 +45,13 @@ function checkToken(req, res, next) {
 // Credencials
 const dbUser = process.env.DB_USER;
 const dbPassword = process.env.DB_PASS;
+const port = process.env.PORT || 3000;
 
 mongoose
     .connect(
         `mongodb+srv://${dbUser}:${dbPassword}@cadplantasbrasil.cna64.mongodb.net/?retryWrites=true&w=majority&appName=CadPlantasBrasil`
     )
     .then(() => {
-        app.listen(3000);
+        app.listen(port);
         console.log("Conectou ao banco de dados!");
     }).catch((err) => console.log(err));
