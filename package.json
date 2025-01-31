@@ -1,6 +1,6 @@
 {
   "name": "cadplantasbrasil",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Cadastro de Plantas e Folhas Brasil",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

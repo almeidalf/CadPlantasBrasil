@@ -38,7 +38,7 @@ const port = process.env.PORT || 3000;
 
 mongoose
     .connect(
-        `mongodb+srv://${dbUser}:${dbPassword}@cadplantasbrasil.cna64.mongodb.net/?retryWrites=true&w=majority&appName=CadPlantasBrasil`
+        `mongodb+srv://${dbUser}:${dbPassword}@cadplantasbrasil.cna64.mongodb.net/CadPlantasBrasilDB?retryWrites=true&w=majority&appName=CadPlantasBrasil`
     )
     .then(() => {
         app.listen(port);
