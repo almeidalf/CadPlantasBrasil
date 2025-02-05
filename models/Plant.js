@@ -22,17 +22,17 @@ const PlantSchema = new mongoose.Schema({
     },
     location: {
         latitude: {
-            type: Number,
+            type: String,
             required: true,
         },
         longitude: {
-            type: Number,
+            type: String,
             required: true,
         },
     },
     images: {
         type: [String],
-        required: true,
+        required: false,
     },
     createdAt: {
         type: Date,

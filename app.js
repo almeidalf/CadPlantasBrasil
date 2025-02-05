@@ -1,12 +1,21 @@
 require('dotenv').config();
 const cors = require('cors');
 const express = require('express');
+const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const path = require('path');
 const app = express();
 
 // Config JSON
 app.use(express.json());
+
+// Aumente o limite de corpo da requisição
+app.use(express.json({ limit: '50mb' }));  // Configura o limite de JSON para 50MB
+app.use(express.urlencoded({ limit: '50mb', extended: true }));  // Configura o limite para dados codificados em URL
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
+
 
 // Config Cors
 const corsOptions = {

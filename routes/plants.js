@@ -2,40 +2,40 @@ const express = require('express');
 const router = express.Router();
 const Plant = require('../models/Plant');
 const checkToken = require('../middlewares/check-token');
-const { upload } = require('../helpers/imageHelper');
-const { uploadToFtp } = require('../helpers/ftpHelper');
+const { processImageAndUploadToFtp } = require('../helpers/imageHelper');
 
-router.post('/register', checkToken, upload.array('images', 10), async (req, res) => {
+router.post('/register', checkToken, processImageAndUploadToFtp, async (req, res) => {
+    console.log('req body', req.body)
+    console.log('req', req)
     const { name, nameScientific, description, location } = req.body;
     const userId = req.userId;
-    const images = req.files;
+    const imageReferences = req.imageReferences; // Referências das imagens que foram enviadas para o FTP
 
-    if (!name || !description || !location || !images || !location.latitude || !location.longitude) {
-        return res.status(422).json({ message: "Todos os campos obrigatórios (name, description, location, images e latitude/longitude) devem ser preenchidos" });
+    // Verificando se todos os campos obrigatórios estão presentes
+    if (!name || !description || !location) {
+        return res.status(422).json({ message: "Todos os campos obrigatórios (name, description, location) devem ser preenchidos" });
     }
 
-    if (typeof location.latitude !== 'number' || typeof location.longitude !== 'number') {
-        return res.status(422).json({ message: "Latitude e Longitude devem ser números" });
-    }
-
-    const plantExists = await Plant.findOne({ name: name, nameScientific: nameScientific });
-    if (plantExists) {
-        return res.status(422).json({ message: "Planta já cadastrada no sistema!" });
+    // Verificando se latitude e longitude são números
+    if (typeof location.latitude !== 'string' || typeof location.longitude !== 'string') {
+        return res.status(422).json({ message: "Latitude e Longitude devem ser string" });
     }
 
     try {
-        const imageReferences = await uploadToFtp(images);
-
+        // Criando o objeto da planta com as referências das imagens
         const plant = new Plant({
             subscriber: userId,
             name,
             nameScientific,
             description,
             location,
-            images: imageReferences
+            images: imageReferences, // Referências das imagens processadas e enviadas para o FTP
         });
 
+        // Salvando no banco de dados
         await plant.save();
+
+        // Respondendo com sucesso
         res.status(201).json({ message: "Planta cadastrada com sucesso!" });
     } catch (err) {
         console.error("Erro ao cadastrar planta:", err);

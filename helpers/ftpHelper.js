@@ -1,4 +1,7 @@
 const ftp = require("basic-ftp");
+const path = require("path");
+const { v4: uuidv4 } = require("uuid");
+const { processImage } = require("./imageHelper");
 
 const ftpConfig = {
     host: process.env.FTP_URL,
@@ -9,7 +12,9 @@ const ftpConfig = {
 
 const remoteBasePath = '/CadPlantasBrasil/plants';
 
-async function uploadToFtp(files) {
+async function uploadToFtp(req, res) {
+    const files = req.files;
+
     const client = new ftp.Client();
     try {
         await client.access(ftpConfig);
@@ -17,13 +22,16 @@ async function uploadToFtp(files) {
 
         const uploadedFileNames = [];
         for (const file of files) {
-            const ext = path.extname(file.originalname).toLowerCase();
-            const imageName = `${uuidv4()}${ext}`;
-            const remotePath = `${remoteBasePath}/${imageName}`;
+            await processImage(req, res, async () => {
+                const ext = path.extname(file.originalname).toLowerCase();
+                const imageName = `${uuidv4()}${ext}`;
+                const remotePath = `${remoteBasePath}/${imageName}`;
 
-            await client.uploadFrom(file.buffer, remotePath);
-            uploadedFileNames.push(imageName);
+                await client.uploadFrom(file.buffer, remotePath);
+                uploadedFileNames.push(imageName);
+            });
         }
+
         return uploadedFileNames;
     } catch (error) {
         console.error("Erro ao enviar arquivos para o FTP:", error);
