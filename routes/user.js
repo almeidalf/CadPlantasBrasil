@@ -7,7 +7,7 @@ const User = require('../models/User');
 
 const version = 'v1/user';
 
-router.post(`/${version}/register`, async (req, res) => {
+router.post('/' + version + '/register', async (req, res) => {
     const { name, email, password, confirmPassword } = req.body;
 
     if (!name || !email || !password) {
@@ -54,7 +54,7 @@ router.post(`/${version}/register`, async (req, res) => {
     }
 });
 
-router.post('/${version}/login', async (req, res) => {
+router.post('/' + version + '/login', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -89,7 +89,7 @@ router.post('/${version}/login', async (req, res) => {
     }
 });
 
-router.get('${version}/list', checkToken, async (req, res) => {
+router.get('/' + version + '/list', checkToken, async (req, res) => {
     try {
         const users = await User.find({}, 'name email createdAt');
         res.status(200).json(users);
@@ -98,7 +98,7 @@ router.get('${version}/list', checkToken, async (req, res) => {
     }
 });
 
-router.get('${version}/:id', checkToken, async (req, res) => {
+router.get('/' + version + '/:id', checkToken, async (req, res) => {
     try{
         const id = req.params.id;
         const user = await User.findById(id, '-password -updatedAt');

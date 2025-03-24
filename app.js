@@ -25,7 +25,6 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Importando as rotas
-const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const plantsRoutes = require('./routes/plants');
 
@@ -35,7 +34,6 @@ app.get('/', (req, res) => {
 });
 
 // Usando as rotas
-app.use('/api', authRoutes);
 app.use('/api', userRoutes);
 app.use('/api', plantsRoutes);
 
