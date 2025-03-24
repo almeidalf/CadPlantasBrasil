@@ -32,10 +32,8 @@ const processImageAndUploadToFtp = async (req, res, next) => {
                 base64: imageBase64
             }));
 
-            const imageReferences = await uploadToFtp(files);
-
             // Salva as referências das imagens para uso posterior (ex: armazenamento no banco)
-            req.imageReferences = imageReferences;
+            req.imageReferences = await uploadToFtp(files);
             next();
         } catch (error) {
             console.error("Erro ao processar as imagens:", error);
