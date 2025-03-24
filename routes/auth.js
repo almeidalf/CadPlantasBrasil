@@ -4,8 +4,10 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User'); // Ajuste o caminho se necessário
 
+const version = 'v1/auth';
+
 // Rota de Registro (Register User)
-router.post('/register', async (req, res) => {
+router.post('/' + version + '/register', async (req, res) => {
     const { name, email, password, confirmPassword } = req.body;
 
     if (!name || !email || !password) {
@@ -40,7 +42,7 @@ router.post('/register', async (req, res) => {
 });
 
 // Rota de Login (Login User)
-router.post('/login', async (req, res) => {
+router.post('/' + version + 'login', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {

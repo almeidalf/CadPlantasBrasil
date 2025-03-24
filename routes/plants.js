@@ -4,9 +4,9 @@ const Plant = require('../models/Plant');
 const checkToken = require('../middlewares/check-token');
 const { processImageAndUploadToFtp } = require('../helpers/imageHelper');
 
-router.post('/register', checkToken, processImageAndUploadToFtp, async (req, res) => {
-    console.log('req body', req.body)
-    console.log('req', req)
+const version = 'v1/plants';
+
+router.post('/' + version + '/register', checkToken, processImageAndUploadToFtp, async (req, res) => {
     const { name, nameScientific, description, location } = req.body;
     const userId = req.userId;
     const imageReferences = req.imageReferences; // Referências das imagens que foram enviadas para o FTP
@@ -43,7 +43,7 @@ router.post('/register', checkToken, processImageAndUploadToFtp, async (req, res
     }
 });
 
-router.get('/list', checkToken, async (req, res) => {
+router.get('/' + version + '/list', checkToken, async (req, res) => {
     try {
         const plants = await Plant.find({}, 'name nameScientific description location images createdAt');
         res.status(200).json(plants);
@@ -52,7 +52,7 @@ router.get('/list', checkToken, async (req, res) => {
     }
 });
 
-router.get('/findId/:id', checkToken, async (req, res) => {
+router.get('/' + version + '/findId/:id', checkToken, async (req, res) => {
     try{
         const id = req.params.id;
         const plant = await Plant.findById(id, '-updatedAt');
@@ -65,7 +65,7 @@ router.get('/findId/:id', checkToken, async (req, res) => {
     }
 });
 
-router.get('/findName/:name', checkToken, async (req, res) => {
+router.get('/' + version + '/findName/:name', checkToken, async (req, res) => {
     try {
         const name = req.params.name;
 

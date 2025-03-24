@@ -1,81 +1,95 @@
 const sharp = require('sharp');
 const ftp = require("basic-ftp");
 const { v4: uuidv4 } = require("uuid");
+const { Readable } = require('stream');
 
 // Função para decodificar a imagem Base64 e comprimir
 const processBase64Image = async (base64Str) => {
     const cleanedBase64Str = base64Str.replace(/^data:image\/[a-z]+;base64,/, "");
-    const buffer = Buffer.from(cleanedBase64Str, 'base64'); // Decodificando Base64 para buffer
-    const compressedBuffer = await sharp(buffer)
-        .resize(1280, 720, { fit: 'inside' }) // Ajuste para redimensionar as imagens
-        .jpeg({ quality: 80 })  // Ajustando a qualidade para 80%
-        .toBuffer();  // Retorna o buffer da imagem comprimida
+
+    // Converter a string para um buffer
+    const buffer = Buffer.from(cleanedBase64Str, 'base64');
+
+    let compressedBuffer;
+    try {
+        compressedBuffer = await sharp(buffer)
+            .resize(1280, 720, { fit: 'inside' })
+            .jpeg({ quality: 80 })
+            .toBuffer();
+    } catch (err) {
+        console.error("Erro no processamento da imagem com Sharp:", err);
+        throw err;
+    }
+
     return compressedBuffer;
 };
 
 const processImageAndUploadToFtp = async (req, res, next) => {
     if (req.body.images && Array.isArray(req.body.images) && req.body.images.length > 0) {
         try {
-            // Decodificar as imagens Base64 e fazer o upload para o FTP
+            // Mapeia as imagens enviadas (em Base64)
             const files = req.body.images.map(imageBase64 => ({
                 base64: imageBase64
             }));
 
             const imageReferences = await uploadToFtp(files);
 
-            // Armazenando as referências das imagens para o banco de dados
-            req.imageReferences = imageReferences; // Salva as referências para o banco
+            // Salva as referências das imagens para uso posterior (ex: armazenamento no banco)
+            req.imageReferences = imageReferences;
             next();
         } catch (error) {
             console.error("Erro ao processar as imagens:", error);
-            return res.status(500).json({ message: 'Erro ao processar as imagens e enviá-las para o FTP', error: error.message });
+            return res.status(500).json({
+                message: 'Erro ao processar as imagens e enviá-las para o FTP',
+                error: error.message
+            });
         }
     } else {
-        // Caso não haja imagens no corpo da requisição, continua o fluxo
+        // Se não houver imagens no corpo da requisição, segue o fluxo normalmente
         next();
     }
 };
 
-// Função para enviar as imagens redimensionadas para o FTP
+// Função para enviar as imagens processadas para o FTP
 async function uploadToFtp(files) {
-    const client = new ftp.Client();
+    const client = new ftp.Client(60000);
     const uploadedFileNames = [];
-    const remoteBasePath = '/CadPlantasBrasil/plants'; // O diretório remoto no FTP
+    const remoteBasePath = '/home/cadplantas/images';
 
     try {
-        // Conectando ao FTP
         await client.access({
             host: process.env.FTP_URL,
+            port: 21,
             user: process.env.FTP_USER,
             password: process.env.FTP_PASS,
-            secure: false, // Mudar para true se usar FTPS
+            secure: true,
+            secureOptions: { rejectUnauthorized: false }
         });
 
         await client.ensureDir(remoteBasePath);
 
-        // Fazendo o upload de cada imagem
         for (const file of files) {
-            // Processando e comprimindo a imagem
-            const compressedBuffer = await processBase64Image(file.base64);
+            try {
+                const processedBuffer = await processBase64Image(file.base64);
 
-            // Gera um nome único para o arquivo
-            const ext = '.jpg';  // Assumindo que você vai salvar como JPG
-            const imageName = `${uuidv4()}${ext}`;
-            const remotePath = `${remoteBasePath}/${imageName}`;
+                const imageName = `${uuidv4()}.jpg`;
+                const remotePath = `${remoteBasePath}/${imageName}`;
 
-            // Envia a imagem comprimida para o FTP
-            await client.uploadFrom(compressedBuffer, remotePath);
+                await client.uploadFrom(Readable.from(processedBuffer), remotePath);
+                console.log(`Imagem enviada: ${remotePath}`);
 
-            // Armazena o nome da imagem para ser salvo no banco de dados
-            uploadedFileNames.push(remotePath);
+                uploadedFileNames.push(remotePath);
+            } catch (err) {
+                console.error("Erro ao processar ou enviar imagem:", err);
+            }
         }
 
-        return uploadedFileNames; // Retorna os caminhos das imagens no FTP
+        return uploadedFileNames;
     } catch (error) {
-        console.error("Erro ao enviar imagens para o FTP:", error);
+        console.error("Erro geral no envio FTP:", error);
         throw error;
     } finally {
-        client.close(); // Fecha a conexão FTP
+        client.close();
     }
 }
 

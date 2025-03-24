@@ -1,11 +1,13 @@
 const checkToken = require('../middlewares/check-token');
 const bcrypt = require('bcrypt');
 const express = require('express');
-const jwt = require('jsonwebtoken');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-router.post('/register', async (req, res) => {
+const version = 'v1/user';
+
+router.post(`/${version}/register`, async (req, res) => {
     const { name, email, password, confirmPassword } = req.body;
 
     if (!name || !email || !password) {
@@ -52,7 +54,7 @@ router.post('/register', async (req, res) => {
     }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/${version}/login', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -87,7 +89,7 @@ router.post('/login', async (req, res) => {
     }
 });
 
-router.get('/list', checkToken, async (req, res) => {
+router.get('${version}/list', checkToken, async (req, res) => {
     try {
         const users = await User.find({}, 'name email createdAt');
         res.status(200).json(users);
@@ -96,7 +98,7 @@ router.get('/list', checkToken, async (req, res) => {
     }
 });
 
-router.get('/:id', checkToken, async (req, res) => {
+router.get('${version}/:id', checkToken, async (req, res) => {
     try{
         const id = req.params.id;
         const user = await User.findById(id, '-password -updatedAt');
