@@ -11,8 +11,12 @@ function checkToken(req, res, next) {
     try {
         const secret = process.env.SECRET;
         const decoded = jwt.verify(token, secret);
-        req.userId = decoded.id;
-        req.userEmail = decoded.email;
+
+        req.user = {
+            id: decoded.id,
+            email: decoded.email
+        };
+
         next();
     } catch (err) {
         return res.status(400).json({ mensagem: "Token inválido!" });

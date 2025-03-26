@@ -45,10 +45,16 @@ router.post('/' + version + '/register', checkToken, processImageAndUploadToFtp,
 
 router.get('/' + version + '/list', checkToken, async (req, res) => {
     try {
-        const plants = await Plant.find({}, 'name nameScientific description location images createdAt');
+        const userId = req.user.id || req.user._id;
+
+        const plants = await Plant.find(
+            { subscriber: userId },
+            'name nameScientific description location images createdAt'
+        );
+
         res.status(200).json(plants);
     } catch (err) {
-        res.status(500).json({ message: 'Erro ao buscar planta', error: err.message });
+        res.status(500).json({ message: 'Erro ao buscar plantas', error: err.message });
     }
 });
 
