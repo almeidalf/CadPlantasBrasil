@@ -16,6 +16,7 @@ function checkToken(req, res, next) {
             id: decoded.id,
             email: decoded.email
         };
+        req.userId = decoded.id;
 
         next();
     } catch (err) {

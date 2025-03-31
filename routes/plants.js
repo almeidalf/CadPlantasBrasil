@@ -4,39 +4,35 @@ const Plant = require('../models/Plant');
 const checkToken = require('../middlewares/check-token');
 const { processImageAndUploadToFtp } = require('../helpers/imageHelper');
 const ExcelJS = require('exceljs');
+const Leaf = require('../models/Leaf');
+const Stem = require('../models/Stem');
+const Inflorescence = require('../models/Inflorescence');
+const Fruit = require('../models/Fruit');
 
-const version = 'v1/plants';
-
-router.post('/' + version + '/register', checkToken, processImageAndUploadToFtp, async (req, res) => {
+router.post('/v1/plants/register', checkToken, processImageAndUploadToFtp, async (req, res) => {
     const { name, nameScientific, description, location } = req.body;
     const userId = req.userId;
-    const imageReferences = req.imageReferences; // Referências das imagens que foram enviadas para o FTP
+    const imageReferences = req.imageReferences;
 
-    // Verificando se todos os campos obrigatórios estão presentes
     if (!name || !description || !location) {
         return res.status(422).json({ message: "Todos os campos obrigatórios (name, description, location) devem ser preenchidos" });
     }
 
-    // Verificando se latitude e longitude são números
     if (typeof location.latitude !== 'string' || typeof location.longitude !== 'string') {
         return res.status(422).json({ message: "Latitude e Longitude devem ser string" });
     }
 
     try {
-        // Criando o objeto da planta com as referências das imagens
         const plant = new Plant({
             subscriber: userId,
             name,
             nameScientific,
             description,
             location,
-            images: imageReferences, // Referências das imagens processadas e enviadas para o FTP
+            images: imageReferences,
         });
 
-        // Salvando no banco de dados
         await plant.save();
-
-        // Respondendo com sucesso
         res.status(201).json({ message: "Planta cadastrada com sucesso!" });
     } catch (err) {
         console.error("Erro ao cadastrar planta:", err);
@@ -44,7 +40,7 @@ router.post('/' + version + '/register', checkToken, processImageAndUploadToFtp,
     }
 });
 
-router.get('/' + version + '/list', checkToken, async (req, res) => {
+router.get('/v1/plants/list', checkToken, async (req, res) => {
     try {
         const userId = req.user.id || req.user._id;
 
@@ -59,7 +55,7 @@ router.get('/' + version + '/list', checkToken, async (req, res) => {
     }
 });
 
-router.get('/' + version + '/findId/:id', checkToken, async (req, res) => {
+router.get('/v1/plants/findId/:id', checkToken, async (req, res) => {
     try{
         const id = req.params.id;
         const plant = await Plant.findById(id, '-updatedAt');
@@ -72,7 +68,7 @@ router.get('/' + version + '/findId/:id', checkToken, async (req, res) => {
     }
 });
 
-router.get('/' + version + '/findName/:name', checkToken, async (req, res) => {
+router.get('/v1/plants/findName/:name', checkToken, async (req, res) => {
     try {
         const name = req.params.name;
 
@@ -89,7 +85,7 @@ router.get('/' + version + '/findName/:name', checkToken, async (req, res) => {
     }
 });
 
-router.get('/' + version + '/export/excel', checkToken, async (req, res) => {
+router.get('/v1/plants/export/excel', checkToken, async (req, res) => {
     try {
         const userId = req.user.id || req.user._id;
         const plants = await Plant.find(
@@ -109,7 +105,6 @@ router.get('/' + version + '/export/excel', checkToken, async (req, res) => {
             { header: 'Data de Cadastro', key: 'createdAt', width: 25 },
         ];
 
-        // Adicionando linhas
         plants.forEach(plant => {
             worksheet.addRow({
                 name: plant.name,
@@ -129,6 +124,27 @@ router.get('/' + version + '/export/excel', checkToken, async (req, res) => {
     } catch (err) {
         console.error('Erro ao gerar Excel:', err);
         res.status(500).json({ message: 'Erro ao gerar Excel', error: err.message });
+    }
+});
+
+router.get('/v1/plants/parts', checkToken, async (req, res) => {
+    try {
+        const [leaves, stem, inflorescence, fruit] = await Promise.all([
+            Leaf.find(),
+            Stem.find(),
+            Inflorescence.find(),
+            Fruit.find()
+        ]);
+
+        res.status(200).json({
+            leaves: leaves.map(item => item.type),
+            stem: stem.map(item => item.type),
+            inflorescence: inflorescence.map(item => item.type),
+            fruit: fruit.map(item => item.type)
+        });
+    } catch (err) {
+        console.error("Erro ao buscar partes das plantas:", err);
+        res.status(500).json({ message: "Erro ao buscar partes das plantas", error: err.message });
     }
 });
 

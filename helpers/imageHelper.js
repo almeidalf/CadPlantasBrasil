@@ -43,12 +43,10 @@ const processImageAndUploadToFtp = async (req, res, next) => {
             });
         }
     } else {
-        // Se não houver imagens no corpo da requisição, segue o fluxo normalmente
         next();
     }
 };
 
-// Função para enviar as imagens processadas para o FTP
 async function uploadToFtp(files) {
     const client = new ftp.Client(60000);
     const uploadedFileNames = [];
@@ -72,10 +70,7 @@ async function uploadToFtp(files) {
 
                 const imageName = `${uuidv4()}.jpg`;
                 const remotePath = `${remoteBasePath}/${imageName}`;
-
                 await client.uploadFrom(Readable.from(processedBuffer), remotePath);
-                console.log(`Imagem enviada: ${remotePath}`);
-
                 uploadedFileNames.push(remotePath);
             } catch (err) {
                 console.error("Erro ao processar ou enviar imagem:", err);
