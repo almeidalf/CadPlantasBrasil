@@ -2,9 +2,16 @@ const sharp = require('sharp');
 const ftp = require("basic-ftp");
 const { v4: uuidv4 } = require("uuid");
 const { Readable } = require('stream');
-const PQueue = require('p-queue').default;
 
-const queue = new PQueue({ concurrency: 5 });
+let queue;
+
+const getQueue = async () => {
+    if (!queue) {
+        const PQueue = (await import('p-queue')).default;
+        queue = new PQueue({ concurrency: 10 });
+    }
+    return queue;
+};
 
 const processBase64Image = async (base64Str) => {
     const cleanedBase64Str = base64Str.replace(/^data:image\/[a-z]+;base64,/, "");
@@ -57,8 +64,9 @@ async function uploadToFtp(files) {
         await client.ensureDir(remoteBasePath);
 
         // Cria uma fila para processar cada imagem
-        const uploadPromises = files.map(file => {
-            return queue.add(async () => {
+        const uploadPromises = files.map(async (file) => {
+            const queueInstance = await getQueue();
+            return queueInstance.add(async () => {
                 try {
                     const processedBuffer = await processBase64Image(file.base64);
                     const imageName = `${uuidv4()}.jpg`;
