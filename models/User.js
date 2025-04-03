@@ -10,6 +10,16 @@ const userSchema = new mongoose.Schema({
         match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     },
     password: { type: String, required: true },
+    msisdn: {
+        type: String,
+        required: false,
+        match: /^\+?[1-9]\d{1,14}$/, // formato E.164 opcionalmente
+    },
+    role: {
+        type: Number,
+        enum: [1, 2, 3], // 1 = usuário, 2 = moderador, 3 = admin master
+        default: 1
+    }
 }, {
     timestamps: true,
     toJSON: {
@@ -23,6 +33,8 @@ const userSchema = new mongoose.Schema({
                 id,
                 name: ret.name,
                 email: ret.email,
+                msisdn: ret.msisdn,
+                role: ret.role,
                 createdAt: ret.createdAt
             };
         }
@@ -30,5 +42,4 @@ const userSchema = new mongoose.Schema({
 });
 
 const User = mongoose.model('User', userSchema);
-
 module.exports = User;

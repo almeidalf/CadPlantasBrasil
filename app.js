@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const path = require('path');
 const app = express();
 const bodyParser = require('body-parser');
+const mongoUri = require('./config/db');
 
 // Aumente o limite de corpo da requisição
 app.use(bodyParser.json({
@@ -36,17 +37,9 @@ app.get('/', (req, res) => {
 // Usando as rotas
 app.use('/api', userRoutes, plantsRoutes);
 
-
-// Credencials
-const dbUser = encodeURIComponent(process.env.DB_USER);
-const dbPassword = encodeURIComponent(process.env.DB_PASS);
-const port = process.env.PORT || 3000;
-
 mongoose
-    .connect(
-        `mongodb://${dbUser}:${dbPassword}@82.29.56.19:27017/CadPlantasBrasilDB?authSource=admin`
-    )
+    .connect(mongoUri)
     .then(() => {
-        app.listen(port);
+        app.listen(3000);
         console.log("Conectou ao banco de dados!");
     }).catch((err) => console.log(err));

@@ -2,17 +2,16 @@ const sharp = require('sharp');
 const ftp = require("basic-ftp");
 const { v4: uuidv4 } = require("uuid");
 const { Readable } = require('stream');
+const PQueue = require('p-queue').default;
 
-// Função para decodificar a imagem Base64 e comprimir
+const queue = new PQueue({ concurrency: 5 });
+
 const processBase64Image = async (base64Str) => {
     const cleanedBase64Str = base64Str.replace(/^data:image\/[a-z]+;base64,/, "");
-
-    // Converter a string para um buffer
     const buffer = Buffer.from(cleanedBase64Str, 'base64');
 
-    let compressedBuffer;
     try {
-        compressedBuffer = await sharp(buffer)
+        return await sharp(buffer)
             .resize(1280, 720, { fit: 'inside' })
             .jpeg({ quality: 80 })
             .toBuffer();
@@ -20,19 +19,12 @@ const processBase64Image = async (base64Str) => {
         console.error("Erro no processamento da imagem com Sharp:", err);
         throw err;
     }
-
-    return compressedBuffer;
 };
 
 const processImageAndUploadToFtp = async (req, res, next) => {
     if (req.body.images && Array.isArray(req.body.images) && req.body.images.length > 0) {
         try {
-            // Mapeia as imagens enviadas (em Base64)
-            const files = req.body.images.map(imageBase64 => ({
-                base64: imageBase64
-            }));
-
-            // Salva as referências das imagens para uso posterior (ex: armazenamento no banco)
+            const files = req.body.images.map(base64 => ({ base64 }));
             req.imageReferences = await uploadToFtp(files);
             next();
         } catch (error) {
@@ -64,20 +56,24 @@ async function uploadToFtp(files) {
 
         await client.ensureDir(remoteBasePath);
 
-        for (const file of files) {
-            try {
-                const processedBuffer = await processBase64Image(file.base64);
+        // Cria uma fila para processar cada imagem
+        const uploadPromises = files.map(file => {
+            return queue.add(async () => {
+                try {
+                    const processedBuffer = await processBase64Image(file.base64);
+                    const imageName = `${uuidv4()}.jpg`;
+                    const remotePath = `${remoteBasePath}/${imageName}`;
+                    await client.uploadFrom(Readable.from(processedBuffer), remotePath);
+                    uploadedFileNames.push(remotePath);
+                } catch (err) {
+                    console.error("Erro ao processar ou enviar imagem:", err);
+                }
+            });
+        });
 
-                const imageName = `${uuidv4()}.jpg`;
-                const remotePath = `${remoteBasePath}/${imageName}`;
-                await client.uploadFrom(Readable.from(processedBuffer), remotePath);
-                uploadedFileNames.push(remotePath);
-            } catch (err) {
-                console.error("Erro ao processar ou enviar imagem:", err);
-            }
-        }
-
+        await Promise.all(uploadPromises);
         return uploadedFileNames;
+
     } catch (error) {
         console.error("Erro geral no envio FTP:", error);
         throw error;
