@@ -10,19 +10,56 @@ const Inflorescence = require('../models/Inflorescence');
 const Fruit = require('../models/Fruit');
 
 router.post('/v1/plants/register', checkToken, processImageAndUploadToFtp, async (req, res) => {
-    const { name, nameScientific, description, location } = req.body;
+    const {
+        name,
+        nameScientific,
+        description,
+        location,
+        leaf,
+        stem,
+        inflorescence,
+        fruit
+    } = req.body;
+
     const userId = req.userId;
     const imageReferences = req.imageReferences;
 
     if (!name || !description || !location) {
-        return res.status(422).json({ message: "Todos os campos obrigatórios (name, description, location) devem ser preenchidos" });
+        return res.status(422).json({
+            message: "Todos os campos obrigatórios (name, description, location) devem ser preenchidos"
+        });
     }
 
     if (typeof location.latitude !== 'string' || typeof location.longitude !== 'string') {
-        return res.status(422).json({ message: "Latitude e Longitude devem ser string" });
+        return res.status(422).json({
+            message: "Latitude e Longitude devem ser string"
+        });
     }
 
     try {
+        const [leafDoc, stemDoc, inflorescenceDoc, fruitDoc] = await Promise.all([
+            leaf ? Leaf.findOne({ type: leaf }) : null,
+            stem ? Stem.findOne({ type: stem }) : null,
+            inflorescence ? Inflorescence.findOne({ type: inflorescence }) : null,
+            fruit ? Fruit.findOne({ type: fruit }) : null
+        ]);
+
+        if (leaf && !leafDoc) {
+            return res.status(422).json({ message: `Tipo de folha inválido: ${leaf}` });
+        }
+
+        if (stem && !stemDoc) {
+            return res.status(422).json({ message: `Tipo de caule inválido: ${stem}` });
+        }
+
+        if (inflorescence && !inflorescenceDoc) {
+            return res.status(422).json({ message: `Tipo de inflorescência inválido: ${inflorescence}` });
+        }
+
+        if (fruit && !fruitDoc) {
+            return res.status(422).json({ message: `Tipo de fruto inválido: ${fruit}` });
+        }
+
         const plant = new Plant({
             subscriber: userId,
             name,
@@ -30,9 +67,14 @@ router.post('/v1/plants/register', checkToken, processImageAndUploadToFtp, async
             description,
             location,
             images: imageReferences,
+            leaf: leafDoc?._id,
+            stem: stemDoc?._id,
+            inflorescence: inflorescenceDoc?._id,
+            fruit: fruitDoc?._id
         });
 
         await plant.save();
+
         res.status(201).json({ message: "Planta cadastrada com sucesso!" });
     } catch (err) {
         console.error("Erro ao cadastrar planta:", err);

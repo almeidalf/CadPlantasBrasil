@@ -5,10 +5,8 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const version = 'v1/user';
-
-router.post('/' + version + '/register', async (req, res) => {
-    const { name, email, password, confirmPassword } = req.body;
+router.post('/v1/user/register', async (req, res) => {
+    const { name, email, msisdn, password, confirmPassword } = req.body;
 
     if (!name || !email || !password) {
         return res.status(422).json({ mensagem: "Todos os campos são obrigatórios" });
@@ -29,7 +27,9 @@ router.post('/' + version + '/register', async (req, res) => {
     const user = new User({
         name,
         email,
+        msisdn,
         password: passwordHash,
+        role: 1
     });
 
     try {
@@ -37,7 +37,8 @@ router.post('/' + version + '/register', async (req, res) => {
 
         const payload = {
             id: user.id,
-            email: user.email
+            email: user.email,
+            role: user.role
         };
 
         const secret = process.env.SECRET;
@@ -54,7 +55,7 @@ router.post('/' + version + '/register', async (req, res) => {
     }
 });
 
-router.post('/' + version + '/login', async (req, res) => {
+router.post('/v1/user/login', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -89,7 +90,7 @@ router.post('/' + version + '/login', async (req, res) => {
     }
 });
 
-router.get('/' + version + '/list', checkToken, async (req, res) => {
+router.get('/v1/user/list', checkToken, async (req, res) => {
     try {
         const users = await User.find({}, 'name email createdAt');
         res.status(200).json(users);
@@ -98,7 +99,7 @@ router.get('/' + version + '/list', checkToken, async (req, res) => {
     }
 });
 
-router.get('/' + version + '/:id', checkToken, async (req, res) => {
+router.get('/v1/user/:id', checkToken, async (req, res) => {
     try{
         const id = req.params.id;
         const user = await User.findById(id, '-password -updatedAt');

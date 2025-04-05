@@ -34,6 +34,26 @@ const PlantSchema = new mongoose.Schema({
         type: [String],
         required: false,
     },
+    leaf: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Leaf',
+        required: false,
+    },
+    stem: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Stem',
+        required: false,
+    },
+    inflorescence: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Inflorescence',
+        required: false,
+    },
+    fruit: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Fruit',
+        required: false,
+    },
     createdAt: {
         type: Date,
         default: Date.now,
@@ -50,6 +70,10 @@ PlantSchema.set('toJSON', {
             images: ret.images,
             location: ret.location,
             createdAt: ret.createdAt,
+            leaf: ret.leaf,
+            stem: ret.stem,
+            inflorescence: ret.inflorescence,
+            fruit: ret.fruit,
         };
 
         delete ret._id;

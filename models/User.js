@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema({
     msisdn: {
         type: String,
         required: false,
-        match: /^\+?[1-9]\d{1,14}$/, // formato E.164 opcionalmente
+        match: /^\+?[1-9]\d{1,14}$/,
     },
     role: {
         type: Number,
