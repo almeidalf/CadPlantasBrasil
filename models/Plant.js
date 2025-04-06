@@ -39,6 +39,11 @@ const PlantSchema = new mongoose.Schema({
         ref: 'Leaf',
         required: false,
     },
+    leafColor: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Color',
+        required: false,
+    },
     stem: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Stem',
@@ -49,10 +54,24 @@ const PlantSchema = new mongoose.Schema({
         ref: 'Inflorescence',
         required: false,
     },
+    inflorescenceColor: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Color',
+        required: false,
+    },
     fruit: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Fruit',
         required: false,
+    },
+    fruitColor: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Color',
+        required: false,
+    },
+    isPublic: {
+        type: Boolean,
+        default: false,
     },
     createdAt: {
         type: Date,
@@ -71,9 +90,13 @@ PlantSchema.set('toJSON', {
             location: ret.location,
             createdAt: ret.createdAt,
             leaf: ret.leaf,
+            leafColor: ret.leafColor,
             stem: ret.stem,
             inflorescence: ret.inflorescence,
+            inflorescenceColor: ret.inflorescenceColor,
             fruit: ret.fruit,
+            fruitColor: ret.fruitColor,
+            isPublic: ret.isPublic,
         };
 
         delete ret._id;

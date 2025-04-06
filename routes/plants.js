@@ -8,6 +8,7 @@ const Leaf = require('../models/Leaf');
 const Stem = require('../models/Stem');
 const Inflorescence = require('../models/Inflorescence');
 const Fruit = require('../models/Fruit');
+const Color = require('../models/Color');
 
 router.post('/v1/plants/register', checkToken, processImageAndUploadToFtp, async (req, res) => {
     const {
@@ -18,7 +19,11 @@ router.post('/v1/plants/register', checkToken, processImageAndUploadToFtp, async
         leaf,
         stem,
         inflorescence,
-        fruit
+        fruit,
+        leafColor,
+        inflorescenceColor,
+        fruitColor,
+        isPublic
     } = req.body;
 
     const userId = req.userId;
@@ -37,27 +42,30 @@ router.post('/v1/plants/register', checkToken, processImageAndUploadToFtp, async
     }
 
     try {
-        const [leafDoc, stemDoc, inflorescenceDoc, fruitDoc] = await Promise.all([
+        const [leafDoc, stemDoc, inflorescenceDoc, fruitDoc, leafColorDoc, inflorescenceColorDoc, fruitColorDoc] = await Promise.all([
             leaf ? Leaf.findOne({ type: leaf }) : null,
             stem ? Stem.findOne({ type: stem }) : null,
             inflorescence ? Inflorescence.findOne({ type: inflorescence }) : null,
-            fruit ? Fruit.findOne({ type: fruit }) : null
+            fruit ? Fruit.findOne({ type: fruit }) : null,
+            leafColor ? Color.findOne({ name: leafColor }) : null,
+            inflorescenceColor ? Color.findOne({ name: inflorescenceColor }) : null,
+            fruitColor ? Color.findOne({ name: fruitColor }) : null
         ]);
 
-        if (leaf && !leafDoc) {
-            return res.status(422).json({ message: `Tipo de folha inválido: ${leaf}` });
+        if (leafColor && !leafColorDoc) {
+            return res.status(422).json({ message: `Cor de folha inválida: ${leafColor}` });
         }
 
         if (stem && !stemDoc) {
             return res.status(422).json({ message: `Tipo de caule inválido: ${stem}` });
         }
 
-        if (inflorescence && !inflorescenceDoc) {
-            return res.status(422).json({ message: `Tipo de inflorescência inválido: ${inflorescence}` });
+        if (inflorescenceColor && !inflorescenceColorDoc) {
+            return res.status(422).json({ message: `Cor de inflorescência inválida: ${inflorescenceColor}` });
         }
 
-        if (fruit && !fruitDoc) {
-            return res.status(422).json({ message: `Tipo de fruto inválido: ${fruit}` });
+        if (fruitColor && !fruitColorDoc) {
+            return res.status(422).json({ message: `Cor de fruto inválida: ${fruitColor}` });
         }
 
         const plant = new Plant({
@@ -68,9 +76,13 @@ router.post('/v1/plants/register', checkToken, processImageAndUploadToFtp, async
             location,
             images: imageReferences,
             leaf: leafDoc?._id,
+            leafColor: leafColorDoc?._id,
             stem: stemDoc?._id,
             inflorescence: inflorescenceDoc?._id,
-            fruit: fruitDoc?._id
+            inflorescenceColor: inflorescenceColorDoc?._id,
+            fruit: fruitDoc?._id,
+            fruitColor: fruitColorDoc?._id,
+            isPublic: isPublic ?? false
         });
 
         await plant.save();
@@ -171,18 +183,20 @@ router.get('/v1/plants/export/excel', checkToken, async (req, res) => {
 
 router.get('/v1/plants/parts', checkToken, async (req, res) => {
     try {
-        const [leaves, stem, inflorescence, fruit] = await Promise.all([
+        const [leaves, stem, inflorescence, fruit, colors] = await Promise.all([
             Leaf.find(),
             Stem.find(),
             Inflorescence.find(),
-            Fruit.find()
+            Fruit.find(),
+            Color.find().sort({ name: 1 })
         ]);
 
         res.status(200).json({
             leaves: leaves.map(item => item.type),
             stem: stem.map(item => item.type),
             inflorescence: inflorescence.map(item => item.type),
-            fruit: fruit.map(item => item.type)
+            fruit: fruit.map(item => item.type),
+            colors: colors.map(item => item.name)
         });
     } catch (err) {
         console.error("Erro ao buscar partes das plantas:", err);
