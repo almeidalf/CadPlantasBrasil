@@ -63,10 +63,10 @@ async function uploadToFtp(files) {
 
         await client.ensureDir(remoteBasePath);
 
-        // Cria uma fila para processar cada imagem
-        const uploadPromises = files.map(async (file) => {
-            const queueInstance = await getQueue();
-            return queueInstance.add(async () => {
+        const queueInstance = await getQueue();
+
+        for (const file of files) {
+            await queueInstance.add(async () => {
                 try {
                     const processedBuffer = await processBase64Image(file.base64);
                     const imageName = `${uuidv4()}.jpg`;
@@ -75,11 +75,11 @@ async function uploadToFtp(files) {
                     uploadedFileNames.push(remotePath);
                 } catch (err) {
                     console.error("Erro ao processar ou enviar imagem:", err);
+                    throw err;
                 }
             });
-        });
+        }
 
-        await Promise.all(uploadPromises);
         return uploadedFileNames;
 
     } catch (error) {
