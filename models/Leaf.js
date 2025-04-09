@@ -4,4 +4,4 @@ const leafSchema = new mongoose.Schema({
     type: String
 });
 
-module.exports = mongoose.model('Leaf', leafSchema, 'leaves');
+module.exports = mongoose.model('Leaf', leafSchema, 'leaf');

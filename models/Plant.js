@@ -17,7 +17,7 @@ const PlantSchema = new mongoose.Schema({
     },
     description: {
         type: String,
-        required: true,
+        required: false,
         maxLength: 3000
     },
     location: {
@@ -32,7 +32,7 @@ const PlantSchema = new mongoose.Schema({
     },
     images: {
         type: [String],
-        required: false,
+        required: true,
     },
     leaf: {
         type: mongoose.Schema.Types.ObjectId,
@@ -89,13 +89,13 @@ PlantSchema.set('toJSON', {
             images: ret.images,
             location: ret.location,
             createdAt: ret.createdAt,
-            leaf: ret.leaf,
-            leafColor: ret.leafColor,
-            stem: ret.stem,
-            inflorescence: ret.inflorescence,
-            inflorescenceColor: ret.inflorescenceColor,
-            fruit: ret.fruit,
-            fruitColor: ret.fruitColor,
+            leaf: ret.leaf?.type || null,
+            leafColor: ret.leafColor?.type || null,
+            stem: ret.stem?.type || null,
+            inflorescence: ret.inflorescence?.type || null,
+            inflorescenceColor: ret.inflorescenceColor?.type || null,
+            fruit: ret.fruit?.type || null,
+            fruitColor: ret.fruitColor?.type || null,
             isPublic: ret.isPublic,
         };
 

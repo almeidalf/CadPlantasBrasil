@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const router = express.Router();
 const Plant = require('../models/Plant');
 const checkToken = require('../middlewares/check-token');
@@ -29,17 +30,22 @@ router.post('/v1/plants/register', checkToken, processImageAndUploadToFtp, async
     const userId = req.userId;
     const imageReferences = req.imageReferences;
 
-    if (!name || !description || !location) {
+    if (!name || !imageReferences) {
         return res.status(422).json({
-            message: "Todos os campos obrigatórios (name, description, location) devem ser preenchidos"
+            message: "Todos os campos obrigatórios (name, imageReferences) devem ser preenchidos"
         });
     }
 
-    if (typeof location.latitude !== 'string' || typeof location.longitude !== 'string') {
-        return res.status(422).json({
-            message: "Latitude e Longitude devem ser string"
-        });
-    }
+    const validLocation = typeof location === 'object' && location !== null ? location : {};
+
+    let latitude = validLocation.latitude?.toString().trim() || "";
+    let longitude = validLocation.longitude?.toString().trim() || "";
+
+    latitude = latitude === "" ? "0" : latitude;
+    longitude = longitude === "" ? "0" : longitude;
+
+    validLocation.latitude = parseFloat(latitude);
+    validLocation.longitude = parseFloat(longitude);
 
     try {
         const [leafDoc, stemDoc, inflorescenceDoc, fruitDoc, leafColorDoc, inflorescenceColorDoc, fruitColorDoc] = await Promise.all([
@@ -73,7 +79,7 @@ router.post('/v1/plants/register', checkToken, processImageAndUploadToFtp, async
             name,
             nameScientific,
             description,
-            location,
+            location: validLocation,
             images: imageReferences,
             leaf: leafDoc?._id,
             leafColor: leafColorDoc?._id,
@@ -100,10 +106,41 @@ router.get('/v1/plants/list', checkToken, async (req, res) => {
 
         const plants = await Plant.find(
             { subscriber: userId },
-            'name nameScientific description location images createdAt'
-        );
+            'name nameScientific description location images isPublic createdAt'
+        )
+            .populate('leaf', 'type')
+            .populate('leafColor', 'type')
+            .populate('stem', 'type')
+            .populate('inflorescence', 'type')
+            .populate('inflorescenceColor', 'type')
+            .populate('fruit', 'type')
+            .populate('fruitColor', 'type');
 
-        res.status(200).json(plants);
+        const formatted = plants.map(plant => {
+            const imageNames = (plant.images || []).map(imgPath => path.basename(imgPath));
+
+            const toType = field => field?.type ?? null;
+
+            return {
+                id: plant._id,
+                name: plant.name,
+                nameScientific: plant.nameScientific,
+                description: plant.description,
+                location: plant.location,
+                images: imageNames,
+                isPublic: plant.isPublic,
+                createdAt: plant.createdAt,
+                leaf: toType(plant.leaf),
+                leafColor: toType(plant.leafColor),
+                stem: toType(plant.stem),
+                inflorescence: toType(plant.inflorescence),
+                inflorescenceColor: toType(plant.inflorescenceColor),
+                fruit: toType(plant.fruit),
+                fruitColor: toType(plant.fruitColor)
+            };
+        });
+
+        res.status(200).json(formatted);
     } catch (err) {
         res.status(500).json({ message: 'Erro ao buscar plantas', error: err.message });
     }
@@ -183,7 +220,7 @@ router.get('/v1/plants/export/excel', checkToken, async (req, res) => {
 
 router.get('/v1/plants/parts', checkToken, async (req, res) => {
     try {
-        const [leaves, stem, inflorescence, fruit, colors] = await Promise.all([
+        const [leaf, stem, inflorescence, fruit, colors] = await Promise.all([
             Leaf.find(),
             Stem.find(),
             Inflorescence.find(),
@@ -192,7 +229,7 @@ router.get('/v1/plants/parts', checkToken, async (req, res) => {
         ]);
 
         res.status(200).json({
-            leaves: leaves.map(item => item.type),
+            leaf: leaf.map(item => item.type),
             stem: stem.map(item => item.type),
             inflorescence: inflorescence.map(item => item.type),
             fruit: fruit.map(item => item.type),
