@@ -106,20 +106,30 @@ router.get('/v1/plants/list', checkToken, async (req, res) => {
 
         const plants = await Plant.find(
             { subscriber: userId },
-            'name nameScientific description location images isPublic createdAt'
+            'name nameScientific description location images isPublic createdAt leaf leafColor stem inflorescence inflorescenceColor fruit fruitColor subscriber'
         )
+            .sort({ createdAt: -1 })
             .populate('leaf', 'type')
             .populate('leafColor', 'type')
             .populate('stem', 'type')
             .populate('inflorescence', 'type')
             .populate('inflorescenceColor', 'type')
             .populate('fruit', 'type')
-            .populate('fruitColor', 'type');
+            .populate('fruitColor', 'type')
+            .populate('subscriber', 'name');
 
         const formatted = plants.map(plant => {
             const imageNames = (plant.images || []).map(imgPath => path.basename(imgPath));
-
             const toType = field => field?.type ?? null;
+
+            const fullName = plant.subscriber?.name ?? "";
+            const nameParts = fullName.trim().split(" ").filter(Boolean);
+            let initials = "";
+            if (nameParts.length >= 2) {
+                initials = `${nameParts[0][0].toUpperCase()}. ${nameParts[nameParts.length - 1]}`;
+            } else if (nameParts.length === 1) {
+                initials = nameParts[0];
+            }
 
             return {
                 id: plant._id,
@@ -130,6 +140,7 @@ router.get('/v1/plants/list', checkToken, async (req, res) => {
                 images: imageNames,
                 isPublic: plant.isPublic,
                 createdAt: plant.createdAt,
+                registeredBy: initials,
                 leaf: toType(plant.leaf),
                 leafColor: toType(plant.leafColor),
                 stem: toType(plant.stem),
@@ -142,6 +153,7 @@ router.get('/v1/plants/list', checkToken, async (req, res) => {
 
         res.status(200).json(formatted);
     } catch (err) {
+        console.error("Erro ao buscar plantas:", err);
         res.status(500).json({ message: 'Erro ao buscar plantas', error: err.message });
     }
 });
