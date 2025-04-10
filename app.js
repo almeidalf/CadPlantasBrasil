@@ -9,12 +9,12 @@ const mongoUri = require('./config/db');
 
 // Aumente o limite de corpo da requisição
 app.use(bodyParser.json({
-    limit: '20mb'
+    limit: '40mb'
 }));
 
 app.use(bodyParser.urlencoded({
-    limit: '20mb',
-    parameterLimit: 50000,
+    limit: '40mb',
+    parameterLimit: 100000,
     extended: true
 }));
 
