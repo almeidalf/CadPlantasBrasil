@@ -73,6 +73,11 @@ const PlantSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
+    group: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Group',
+        required: true,
+    },
     createdAt: {
         type: Date,
         default: Date.now,

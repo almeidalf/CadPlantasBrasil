@@ -62,7 +62,6 @@ async function uploadToFtp(files) {
         });
 
         await client.ensureDir(remoteBasePath);
-
         const queueInstance = await getQueue();
 
         for (const file of files) {
@@ -90,6 +89,59 @@ async function uploadToFtp(files) {
     }
 }
 
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function deleteWithRetry(client, remotePath, maxRetries = 3) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            await client.remove(remotePath);
+            console.log(`✅ Deletado (tentativa ${attempt}):`, remotePath);
+            return { path: remotePath, success: true };
+        } catch (err) {
+            console.warn(`⚠️ Falha tentativa ${attempt} para deletar ${remotePath}:`, err.message);
+            if (attempt < maxRetries) {
+                await delay(500); // espera antes de tentar de novo
+            } else {
+                return { path: remotePath, success: false, error: err.message };
+            }
+        }
+    }
+}
+
+async function deleteMultipleFiles(filePaths = []) {
+    if (!Array.isArray(filePaths) || filePaths.length === 0) return [];
+
+    const client = new ftp.Client();
+    const results = [];
+
+    try {
+        await client.access({
+            host: process.env.FTP_URL,
+            port: 21,
+            user: process.env.FTP_USER,
+            password: process.env.FTP_PASS,
+            secure: true,
+            secureOptions: { rejectUnauthorized: false }
+        });
+
+        for (const remotePath of filePaths) {
+            const result = await deleteWithRetry(client, remotePath);
+            results.push(result);
+        }
+
+    } catch (err) {
+        console.error("❌ Erro ao conectar no FTP:", err.message);
+        throw err;
+    } finally {
+        client.close();
+    }
+
+    return results;
+}
+
 module.exports = {
-    processImageAndUploadToFtp
+    processImageAndUploadToFtp,
+    deleteMultipleFiles,
 };

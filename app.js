@@ -9,11 +9,11 @@ const mongoUri = require('./config/db');
 
 // Aumente o limite de corpo da requisição
 app.use(bodyParser.json({
-    limit: '40mb'
+    limit: '50mb'
 }));
 
 app.use(bodyParser.urlencoded({
-    limit: '40mb',
+    limit: '50mb',
     parameterLimit: 100000,
     extended: true
 }));
@@ -28,6 +28,7 @@ app.use(cors(corsOptions));
 // Importando as rotas
 const userRoutes = require('./routes/user');
 const plantsRoutes = require('./routes/plants');
+const groupRoutes = require('./routes/group');
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => {
@@ -35,7 +36,7 @@ app.get('/', (req, res) => {
 });
 
 // Usando as rotas
-app.use('/api', userRoutes, plantsRoutes);
+app.use('/api', userRoutes, plantsRoutes, groupRoutes);
 
 mongoose
     .connect(mongoUri)

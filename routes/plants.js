@@ -2,8 +2,9 @@ const express = require('express');
 const path = require('path');
 const router = express.Router();
 const Plant = require('../models/Plant');
+const Group = require('../models/Group'); // ✅ Novo
 const checkToken = require('../middlewares/check-token');
-const { processImageAndUploadToFtp } = require('../helpers/imageHelper');
+const { processImageAndUploadToFtp, deleteMultipleFiles } = require('../helpers/imageHelper');
 const ExcelJS = require('exceljs');
 const Leaf = require('../models/Leaf');
 const Stem = require('../models/Stem');
@@ -17,6 +18,7 @@ router.post('/v1/plants/register', checkToken, processImageAndUploadToFtp, async
         nameScientific,
         description,
         location,
+        group,
         leaf,
         stem,
         inflorescence,
@@ -30,20 +32,20 @@ router.post('/v1/plants/register', checkToken, processImageAndUploadToFtp, async
     const userId = req.userId;
     const imageReferences = req.imageReferences;
 
-    if (!name || !imageReferences) {
+    if (!name || !imageReferences || !group) {
         return res.status(422).json({
-            message: "Todos os campos obrigatórios (name, imageReferences) devem ser preenchidos"
+            message: "Campos obrigatórios (name, group, imageReferences) devem ser preenchidos"
         });
     }
 
+    const groupDoc = await Group.findOne({ _id: group, subscriber: userId });
+    if (!groupDoc) {
+        return res.status(422).json({ message: "Grupo inválido ou não pertence ao usuário." });
+    }
+
     const validLocation = typeof location === 'object' && location !== null ? location : {};
-
-    let latitude = validLocation.latitude?.toString().trim() || "";
-    let longitude = validLocation.longitude?.toString().trim() || "";
-
-    latitude = latitude === "" ? "0" : latitude;
-    longitude = longitude === "" ? "0" : longitude;
-
+    let latitude = validLocation.latitude?.toString().trim() || "0";
+    let longitude = validLocation.longitude?.toString().trim() || "0";
     validLocation.latitude = parseFloat(latitude);
     validLocation.longitude = parseFloat(longitude);
 
@@ -58,24 +60,9 @@ router.post('/v1/plants/register', checkToken, processImageAndUploadToFtp, async
             fruitColor ? Color.findOne({ name: fruitColor }) : null
         ]);
 
-        if (leafColor && !leafColorDoc) {
-            return res.status(422).json({ message: `Cor de folha inválida: ${leafColor}` });
-        }
-
-        if (stem && !stemDoc) {
-            return res.status(422).json({ message: `Tipo de caule inválido: ${stem}` });
-        }
-
-        if (inflorescenceColor && !inflorescenceColorDoc) {
-            return res.status(422).json({ message: `Cor de inflorescência inválida: ${inflorescenceColor}` });
-        }
-
-        if (fruitColor && !fruitColorDoc) {
-            return res.status(422).json({ message: `Cor de fruto inválida: ${fruitColor}` });
-        }
-
         const plant = new Plant({
             subscriber: userId,
+            group: groupDoc._id,
             name,
             nameScientific,
             description,
@@ -92,11 +79,124 @@ router.post('/v1/plants/register', checkToken, processImageAndUploadToFtp, async
         });
 
         await plant.save();
-
         res.status(201).json({ message: "Planta cadastrada com sucesso!" });
     } catch (err) {
         console.error("Erro ao cadastrar planta:", err);
         res.status(500).json({ message: "Erro ao cadastrar planta", error: err.message });
+    }
+});
+
+router.delete('/v1/plants/:id', checkToken, async (req, res) => {
+    try {
+        const plantId = req.params.id;
+        const userId = req.userId;
+
+        const plant = await Plant.findOne({ _id: plantId, subscriber: userId });
+
+        if (!plant) {
+            return res.status(404).json({ message: "Planta não encontrada ou não pertence ao usuário." });
+        }
+
+        const deleteResults = await deleteMultipleFiles(plant.images || []);
+        await Plant.deleteOne({ _id: plantId });
+
+        res.status(200).json({
+            message: "Planta deletada com sucesso!",
+            ftpResults: deleteResults
+        });
+    } catch (err) {
+        console.error("Erro ao deletar planta:", err);
+        res.status(500).json({ message: "Erro ao deletar planta", error: err.message });
+    }
+});
+
+router.put('/v1/plants/:id', checkToken, async (req, res) => {
+    try {
+        const plantId = req.params.id;
+        const userId = req.userId;
+
+        const {
+            name,
+            nameScientific,
+            description,
+            location,
+            group,
+            leaf,
+            stem,
+            inflorescence,
+            fruit,
+            leafColor,
+            inflorescenceColor,
+            fruitColor,
+            isPublic,
+            images = []
+        } = req.body;
+
+        const plant = await Plant.findOne({ _id: plantId, subscriber: userId });
+        if (!plant) {
+            return res.status(404).json({ message: "Planta não encontrada ou não pertence ao usuário." });
+        }
+
+        const validLocation = typeof location === 'object' && location !== null
+            ? {
+                latitude: parseFloat(location.latitude?.toString().trim() || "0"),
+                longitude: parseFloat(location.longitude?.toString().trim() || "0")
+            }
+            : plant.location;
+
+        const [groupDoc, leafDoc, stemDoc, inflorescenceDoc, fruitDoc, leafColorDoc, inflorescenceColorDoc, fruitColorDoc] = await Promise.all([
+            group ? Group.findOne({ _id: group, subscriber: userId }) : null,
+            leaf ? Leaf.findOne({ type: leaf }) : null,
+            stem ? Stem.findOne({ type: stem }) : null,
+            inflorescence ? Inflorescence.findOne({ type: inflorescence }) : null,
+            fruit ? Fruit.findOne({ type: fruit }) : null,
+            leafColor ? Color.findOne({ name: leafColor }) : null,
+            inflorescenceColor ? Color.findOne({ name: inflorescenceColor }) : null,
+            fruitColor ? Color.findOne({ name: fruitColor }) : null
+        ]);
+
+        const imagesBase64 = images.filter(img => img.startsWith('data:image/'));
+        const imagesPath = images.filter(img => !img.startsWith('data:image/'));
+
+        const imagesRemoved = plant.images.filter(oldImg => !imagesPath.includes(oldImg));
+
+        let uploadedPaths = [];
+        if (imagesBase64.length > 0) {
+            uploadedPaths = await uploadToFtp(imagesBase64.map(base64 => ({ base64 })));
+        }
+
+        if (imagesRemoved.length > 0) {
+            await deleteMultipleFiles(imagesRemoved);
+        }
+
+        const finalImages = [...imagesPath, ...uploadedPaths];
+
+        plant.name = name ?? plant.name;
+        plant.nameScientific = nameScientific ?? plant.nameScientific;
+        plant.description = description ?? plant.description;
+        plant.location = validLocation;
+        plant.group = groupDoc?._id ?? plant.group;
+        plant.leaf = leafDoc?._id ?? plant.leaf;
+        plant.stem = stemDoc?._id ?? plant.stem;
+        plant.inflorescence = inflorescenceDoc?._id ?? plant.inflorescence;
+        plant.fruit = fruitDoc?._id ?? plant.fruit;
+        plant.leafColor = leafColorDoc?._id ?? plant.leafColor;
+        plant.inflorescenceColor = inflorescenceColorDoc?._id ?? plant.inflorescenceColor;
+        plant.fruitColor = fruitColorDoc?._id ?? plant.fruitColor;
+        plant.isPublic = isPublic ?? plant.isPublic;
+        plant.images = finalImages;
+
+        await plant.save();
+
+        res.status(200).json({
+            message: "Planta atualizada com sucesso!",
+            updatedImages: finalImages,
+            removedImages: imagesRemoved
+        });
+
+    } catch (err) {
+        console.error("Erro ao atualizar planta:", err);
+        res.status(500).json({ message: "Erro ao atualizar planta", error: err.message });
     }
 });
 
@@ -106,7 +206,7 @@ router.get('/v1/plants/list', checkToken, async (req, res) => {
 
         const plants = await Plant.find(
             { subscriber: userId },
-            'name nameScientific description location images isPublic createdAt leaf leafColor stem inflorescence inflorescenceColor fruit fruitColor subscriber'
+            'name nameScientific description location images isPublic createdAt leaf leafColor stem inflorescence inflorescenceColor fruit fruitColor group subscriber'
         )
             .sort({ createdAt: -1 })
             .populate('leaf', 'type')
@@ -116,6 +216,7 @@ router.get('/v1/plants/list', checkToken, async (req, res) => {
             .populate('inflorescenceColor', 'type')
             .populate('fruit', 'type')
             .populate('fruitColor', 'type')
+            .populate('group', 'name')
             .populate('subscriber', 'name');
 
         const formatted = plants.map(plant => {
@@ -124,12 +225,9 @@ router.get('/v1/plants/list', checkToken, async (req, res) => {
 
             const fullName = plant.subscriber?.name ?? "";
             const nameParts = fullName.trim().split(" ").filter(Boolean);
-            let initials = "";
-            if (nameParts.length >= 2) {
-                initials = `${nameParts[0][0].toUpperCase()}. ${nameParts[nameParts.length - 1]}`;
-            } else if (nameParts.length === 1) {
-                initials = nameParts[0];
-            }
+            const initials = nameParts.length >= 2
+                ? `${nameParts[0][0].toUpperCase()}. ${nameParts[nameParts.length - 1]}`
+                : nameParts[0] ?? "";
 
             return {
                 id: plant._id,
@@ -140,6 +238,7 @@ router.get('/v1/plants/list', checkToken, async (req, res) => {
                 images: imageNames,
                 isPublic: plant.isPublic,
                 createdAt: plant.createdAt,
+                group: plant.group?.name ?? null,
                 registeredBy: initials,
                 leaf: toType(plant.leaf),
                 leafColor: toType(plant.leafColor),
@@ -158,43 +257,13 @@ router.get('/v1/plants/list', checkToken, async (req, res) => {
     }
 });
 
-router.get('/v1/plants/findId/:id', checkToken, async (req, res) => {
-    try{
-        const id = req.params.id;
-        const plant = await Plant.findById(id, '-updatedAt');
-        if (!plant) {
-            return res.status(404).json({ message: "Planta não encontrada" });
-        }
-        res.status(200).json(plant);
-    }catch(err){
-        res.status(500).json({ message: 'Erro ao buscar planta', error: err.message });
-    }
-});
-
-router.get('/v1/plants/findName/:name', checkToken, async (req, res) => {
-    try {
-        const name = req.params.name;
-
-        const plants = await Plant.find({ name: { $regex: `^${name}`, $options: 'i' } }, '-updatedAt');
-
-        if (!plants || plants.length === 0) {
-            return res.status(404).json({ message: 'Nenhuma planta encontrada com esse nome' });
-        }
-
-        res.status(200).json(plants);
-    } catch (err) {
-        console.error("Erro ao buscar plantas:", err);
-        res.status(500).json({ message: 'Erro ao buscar plantas', error: err.message });
-    }
-});
-
 router.get('/v1/plants/export/excel', checkToken, async (req, res) => {
     try {
         const userId = req.user.id || req.user._id;
         const plants = await Plant.find(
             { subscriber: userId },
-            'name nameScientific description location createdAt'
-        );
+            'name nameScientific description location createdAt group'
+        ).populate('group', 'name');
 
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Plantas');
@@ -205,6 +274,7 @@ router.get('/v1/plants/export/excel', checkToken, async (req, res) => {
             { header: 'Descrição', key: 'description', width: 40 },
             { header: 'Latitude', key: 'latitude', width: 20 },
             { header: 'Longitude', key: 'longitude', width: 20 },
+            { header: 'Grupo', key: 'group', width: 25 }, // ✅ novo
             { header: 'Data de Cadastro', key: 'createdAt', width: 25 },
         ];
 
@@ -215,6 +285,7 @@ router.get('/v1/plants/export/excel', checkToken, async (req, res) => {
                 description: plant.description,
                 latitude: plant.location.latitude,
                 longitude: plant.location.longitude,
+                group: plant.group?.name ?? '',
                 createdAt: plant.createdAt.toLocaleString(),
             });
         });
